@@ -79,8 +79,7 @@ header {
     width: 100px;
     height: 100px;
     object-fit: cover;
-    border-top-left-radius: 10px;
-    border-bottom-left-radius: 10px;
+    border-radius:10px;
 }
 
 /* Clickable Content */
