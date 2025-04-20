@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flappy Bird</title>
+  <style>
+    body {
+      margin: 0;
+      background: #70c5ce;
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #game-container {
+      position: relative;
+    }
+
+    #flappyCanvas {
+      background: #fff;
+      display: block;
+      border: 2px solid #000;
+    }
+
+    #start-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 20px;
+      color: black;
+      background: rgba(255,255,255,0.8);
+      padding: 10px 20px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    #game-over-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: red;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="flappyCanvas" width="320" height="480"></canvas>
+    <div id="start-text">Click or Press Space to Start</div>
+    <div id="game-over-text">Game Over! Score: <span id="final-score"></span></div>
+  </div>
+  <script>
+    const canvas = document.getElementById("flappyCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Sound for passing through pipes (0.5 second duration)
+    const passThroughSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2017/2017.wav");
+
+    // Game Over sounds based on score
+    const gameOverSound1 = new Audio("https://assets.mixkit.co/active_storage/sfx/2019/2019.wav"); // Over 20 score sound
+    const gameOverSound2 = new Audio("https://www.soundjay.com/button/beep-07.wav"); // 10-20 score sound
+
+    let bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.6, lift: -10, velocity: 0 };
+    let pipes = [];
+    let score = 0;
+    let isGameOver = false;
+    let started = false;
+
+    document.addEventListener("keydown", handleJump);
+    document.addEventListener("click", handleJump);
+
+    function handleJump(e) {
+      if (!started) {
+        started = true;
+        document.getElementById("start-text").style.display = "none";
+        requestAnimationFrame(gameLoop);
+      }
+
+      if (e.code === "Space" || e.type === "click") {
+        if (isGameOver) {
+          // Reset game state when the game is over
+          resetGame();
+          gameOverSound1.pause();
+          gameOverSound2.pause();
+        } else {
+          bird.velocity = bird.lift;
+        }
+      }
+    }
+
+    function drawBird() {
+      ctx.fillStyle = "#f00";
+      ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+    }
+
+    function updateBird() {
+      bird.velocity += bird.gravity;
+      bird.y += bird.velocity;
+
+      if (bird.y + bird.height > canvas.height || bird.y < 0) {
+        endGame();
+      }
+    }
+
+    function drawPipes() {
+      ctx.fillStyle = "#0f0";
+      for (let pipe of pipes) {
+        ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipe.width, pipe.bottom);
+      }
+    }
+
+    function updatePipes() {
+      if (frames % 90 === 0) {
+        let top = Math.floor(Math.random() * 180) + 50;
+        let gap = 200; // doubled gap between pipes
+        let bottom = canvas.height - top - gap;
+        pipes.push({ x: canvas.width, width: 40, top: top, bottom: bottom });
+      }
+
+      for (let pipe of pipes) {
+        pipe.x -= 2;
+
+        if (
+          bird.x < pipe.x + pipe.width &&
+          bird.x + bird.width > pipe.x &&
+          (bird.y < pipe.top || bird.y + bird.height > canvas.height - pipe.bottom)
+        ) {
+          endGame();
+        }
+
+        // Play sound when the bird passes through the gap (0.5 seconds duration)
+        if (pipe.x + pipe.width === bird.x) {
+          score++;
+          passThroughSound.play();
+          setTimeout(() => passThroughSound.pause(), 500); // Pause the sound after 0.5 seconds
+        }
+      }
+
+      pipes = pipes.filter(p => p.x + p.width > 0);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "#000";
+      ctx.font = "20px Arial";
+      ctx.fillText("Score: " + score, 10, 25);
+    }
+
+    function endGame() {
+      isGameOver = true;
+      document.getElementById("final-score").textContent = score;
+      document.getElementById("game-over-text").style.display = "block";
+
+      // Play game over sound based on score
+      if (score >= 20) {
+        gameOverSound1.play(); // Play this sound for scores over 20
+      } else if (score >= 10 && score < 20) {
+        gameOverSound2.play(); // Play this sound for scores between 10 and 20
+      }
+    }
+
+    function resetGame() {
+      bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.6, lift: -10, velocity: 0 };
+      pipes = [];
+      score = 0;
+      isGameOver = false;
+      frames = 0;
+      document.getElementById("game-over-text").style.display = "none";
+      requestAnimationFrame(gameLoop);
+    }
+
+    let frames = 0;
+
+    function gameLoop() {
+      if (isGameOver) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      updateBird();
+      updatePipes();
+      drawPipes();
+      drawBird();
+      drawScore();
+      frames++;
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.getElementById("start-text").style.display = "block";
+  </script>
+</body>
+</html>
