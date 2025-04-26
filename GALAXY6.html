@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Orbit Simulator with Interactive Features</title>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:sans-serif; }
+    .game-container { position:relative; width:100vw; height:60vh; max-height:100%; display:flex; align-items:center; justify-content:center; }
+    canvas { display:block; width:100%; height:100%; }
+    #controls { margin-top:10px; text-align:center; }
+    button.action { padding:8px 16px; margin:0 5px; font-size:1rem; border:none; border-radius:4px; background:#444; color:#fff; cursor:pointer; }
+    #tooltip { position:absolute; pointer-events:none; background:rgba(0,0,0,0.7); color:#fff; padding:4px 8px; border-radius:4px; font-size:0.9rem; display:none; white-space:nowrap; }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <canvas id="orbitCanvas"></canvas>
+    <div id="tooltip"></div>
+  </div>
+  <div id="controls">
+    <button id="nextGalaxyBtn" class="action">Next Galaxy</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('orbitCanvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    let width, height, cx, cy;
+
+    const orbitDs = [0.2,0.3,0.4,0.5,0.7,0.85];
+    const basePlanets = [
+      {name:'Mercury',r:4,color:'#aaa',period:4.8},
+      {name:'Venus',r:6,color:'#e5c07b',period:12.1},
+      {name:'Earth',r:6,color:'#61afef',period:15},
+      {name:'Mars',r:5,color:'#e06c75',period:28.3},
+      {name:'Jupiter',r:10,color:'#d19a66',period:200},
+      {name:'Saturn',r:9,color:'#c678dd',period:500}
+    ];
+    const galaxies = [];
+    function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+    for(let g=0;g<5;g++){ const arr = basePlanets.map(p=>({...p})); if(g>0) shuffleArr(arr); galaxies.push(arr); }
+    let galaxyIndex=0;
+    let planets = getGalaxy(galaxyIndex);
+
+    function getGalaxy(idx){ return galaxies[idx].map((p,i)=>({...p, d:orbitDs[i]})); }
+
+    function resize(){ width=canvas.clientWidth*devicePixelRatio; height=canvas.clientHeight*devicePixelRatio; canvas.width=width; canvas.height=height; cx=width/2; cy=height/2; }
+    window.addEventListener('resize', resize);
+    resize();
+
+    let start = performance.now();
+    let dragIndex = null, dragX=0, dragY=0;
+    let hoverIndex = null;
+
+    // Audio feedback
+    const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    function playBeep(){ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=440; g.gain.value=0.1; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.1); }
+
+    canvas.addEventListener('pointerdown', e=>{
+      const {x,y,i} = getPointerPlanet(e); if(i!==null){ dragIndex=i; dragX=x; dragY=y; }
+    });
+    canvas.addEventListener('pointermove', e=>{
+      const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
+      if(dragIndex!==null){ dragX=mx; dragY=my; }
+      // hover
+      const {i,px,py} = getPointerPlanet(e);
+      if(i!==null){ hoverIndex = i; tooltip.style.display='block'; tooltip.textContent = planets[i].name; tooltip.style.left=`${e.clientX+10}px`; tooltip.style.top=`${e.clientY+10}px`; }
+      else { hoverIndex=null; tooltip.style.display='none'; }
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(dragIndex===null) return; const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
+      const dist = Math.hypot(mx-cx, my-cy);
+      let best=0, bd=Infinity;
+      orbitDs.forEach((d,i)=>{ const rd=Math.abs(dist-Math.min(cx,cy)*d); if(rd<bd){bd=rd;best=i;} });
+      if(best!==dragIndex){ [planets[best],planets[dragIndex]]=[planets[dragIndex],planets[best]]; playBeep(); }
+      dragIndex=null;
+    });
+
+    function getPointerPlanet(e){ const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
+      const t=(performance.now()-start)/1000;
+      for(let i=0;i<planets.length;i++){ const p=planets[i]; const orbitR=Math.min(cx,cy)*p.d; const angle=(t/p.period)*2*Math.PI;
+        const px=cx+Math.cos(angle)*orbitR, py=cy+Math.sin(angle)*orbitR;
+        if(Math.hypot(px-mx,py-my)<p.r*devicePixelRatio) return {x:mx,y:my,i}; }
+      return {x:mx,y:my,i:null}; }
+
+    function draw(){ const t=(performance.now()-start)/1000;
+      ctx.clearRect(0,0,width,height);
+      // Sun with glow
+      ctx.save(); ctx.shadowBlur=20*devicePixelRatio; ctx.shadowColor='yellow'; ctx.beginPath(); ctx.arc(cx,cy,20*devicePixelRatio,0,2*Math.PI); ctx.fillStyle='orange'; ctx.fill(); ctx.restore();
+
+      planets.forEach((p,i)=>{
+        const orbitR=Math.min(cx,cy)*p.d;
+        // orbit ring glow
+        ctx.save(); ctx.shadowBlur=5*devicePixelRatio; ctx.shadowColor='rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.arc(cx,cy,orbitR,0,2*Math.PI); ctx.stroke(); ctx.restore();
+        let px,py;
+        if(i===dragIndex){ px=dragX; py=dragY; }
+        else { const angle=(t/p.period)*2*Math.PI; px=cx+Math.cos(angle)*orbitR; py=cy+Math.sin(angle)*orbitR; }
+        // planet glow
+        ctx.save(); ctx.shadowBlur=10*devicePixelRatio; ctx.shadowColor=p.color; ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(px,py,p.r*devicePixelRatio,0,2*Math.PI); ctx.fill(); ctx.restore();
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Next Galaxy
+    document.getElementById('nextGalaxyBtn').addEventListener('click', ()=>{
+      const choice=prompt('Enter next galaxy number (1-5):'); const idx=parseInt(choice)-1;
+      if(idx>=0 && idx<galaxies.length){ galaxyIndex=idx; planets=getGalaxy(galaxyIndex); start=performance.now(); }
+      else alert('Invalid galaxy, please enter 1-5');
+    });
+  </script>
+</body>
+</html>
