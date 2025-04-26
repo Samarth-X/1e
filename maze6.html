@@ -3,219 +3,172 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mirror Maze</title>
+  <title>Orbit Simulator</title>
   <style>
-    html, body {
+    body, html {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       overflow: hidden;
-      background: #222;
-      color: #fff;
+      background: #000;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: center;
       font-family: sans-serif;
     }
-    h1 { margin: 10px; font-size: 1.4em; }
-    .canvases {
+    .game-container {
+      width: 100vw;
+      height: 60vh;
+      max-height: 100%;
       display: flex;
-      gap: 10px;
-      margin: 10px;
+      align-items: center;
+      justify-content: center;
+      position: relative;
     }
-    canvas {
-      background: #111;
-      border: 2px solid #555;
-    }
-    .controls {
-      display: grid;
-      grid-template-areas:
-        ". up ."
-        "left . right"
-        ". down .";
-      grid-gap: 5px;
-      margin: 10px;
-    }
-    .controls button {
-      border: none;
-      border-radius: 8px;
-      background: #444;
-      color: #fff;
-      font-size: 1.5rem;
-      touch-action: manipulation;
-    }
-    #up    { grid-area: up;    }
-    #down  { grid-area: down;  }
-    #left  { grid-area: left;  }
-    #right { grid-area: right; }
-    .action {
-      margin: 10px;
-      padding: 10px 20px;
+    canvas { display: block; width: 100%; height: 100%; }
+    #controls { margin-top: 10px; }
+    button.action {
+      padding: 8px 16px;
+      margin: 0 5px;
       font-size: 1rem;
+      border: none;
       border-radius: 4px;
       background: #444;
       color: #fff;
-    }
-    #message { margin: 5px; text-align: center; }
-
-    @media (max-width: 600px) {
-      .canvases { flex-direction: column; gap: 5px; }
-      .controls button { width: 50px; height: 50px; font-size: 1.2rem; }
-      .action { font-size: 0.9rem; padding: 8px 16px; }
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Mirror Maze - Level <span id="level">1</span></h1>
-  <div class="canvases">
-    <canvas id="maze1"></canvas>
-    <canvas id="maze2"></canvas>
+  <div class="game-container">
+    <canvas id="orbitCanvas"></canvas>
   </div>
-  <div class="controls">
-    <button id="up">▲</button>
-    <button id="left">◀</button>
-    <button id="right">▶</button>
-    <button id="down">▼</button>
+  <div id="controls">
+    <button id="nextGalaxyBtn" class="action">Next Galaxy</button>
   </div>
-  <div>
-    <button id="nextBtn" class="action" style="display:none;">Next Level</button>
-    <button id="restartBtn" class="action" style="display:none;">Restart</button>
-  </div>
-  <div id="message">Use arrows or swipe to move.</div>
 
   <script>
-    let currentLevel = 1;
-    const maxLevels = 20;
-    let gridSize = 15;
-    let maze, player, exitPos;
-    let cellSize;
+    const canvas = document.getElementById('orbitCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, cx, cy;
 
-    function shuffle(a) {
-      for (let i = a.length-1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i+1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
+    // Define fixed orbits
+    const orbitDs = [0.2, 0.3, 0.4, 0.5, 0.7, 0.85];
+    // Base planet templates
+    const basePlanets = [
+      { name: 'Mercury', r: 4, color: '#aaa', period: 4.8 },
+      { name: 'Venus',   r: 6, color: '#e5c07b', period: 12.1 },
+      { name: 'Earth',   r: 6, color: '#61afef', period: 15 },
+      { name: 'Mars',    r: 5, color: '#e06c75', period: 28.3 },
+      { name: 'Jupiter', r: 10, color: '#d19a66', period: 200 },
+      { name: 'Saturn',  r: 9, color: '#c678dd', period: 500 }
+    ];
+    // Galaxies: different shuffles of basePlanets
+    const galaxies = [];
+    function shuffleArr(a) { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} }
+    // Precompute 5 galaxy configs
+    for(let g=0; g<5; g++){
+      const arr = basePlanets.map(p=>({ ...p }));
+      if(g>0) shuffleArr(arr);
+      galaxies.push(arr);
     }
+    let galaxyIndex = 0;
+    let planets = galaxies[galaxyIndex].map((p,i)=>({ ...p, d: orbitDs[i] }));
 
-    function generateMaze(n) {
-      const m = Array.from({length:n}, () => Array(n).fill(1));
-      function carve(x,y) {
-        m[y][x] = 0;
-        const dirs = [[2,0],[-2,0],[0,2],[0,-2]];
-        shuffle(dirs);
-        dirs.forEach(([dx,dy]) => {
-          const nx = x+dx, ny = y+dy;
-          if (ny>0 && ny<n-1 && nx>0 && nx<n-1 && m[ny][nx]) {
-            m[y+dy/2][x+dx/2] = 0;
-            carve(nx,ny);
-          }
-        });
-      }
-      carve(1,1);
-      return m;
+    function resize() {
+      width = canvas.clientWidth * devicePixelRatio;
+      height = canvas.clientHeight * devicePixelRatio;
+      canvas.width = width;
+      canvas.height = height;
+      cx = width/2; cy = height/2;
     }
+    window.addEventListener('resize', resize);
+    resize();
 
-    function initLayout() {
-      const availableWidth = window.innerWidth - 20;
-      const availableHeight = window.innerHeight - 120;
-      const cols = (availableWidth > availableHeight)
-        ? gridSize * 2 + 1
-        : gridSize;
-      cellSize = Math.floor(Math.min(availableWidth/cols, availableHeight/gridSize));
+    let start = performance.now();
 
-      const canvases = document.querySelector('.canvases');
-      canvases.style.flexDirection = (availableWidth > availableHeight) ? 'row' : 'column';
-
-      ["maze1","maze2"].forEach(id => {
-        const c = document.getElementById(id);
-        c.width = gridSize * cellSize;
-        c.height = gridSize * cellSize;
+    // Drag state
+    let drag = { index: null, x:0, y:0 };
+    canvas.addEventListener('pointerdown', e=>{
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left)*devicePixelRatio;
+      const my = (e.clientY - rect.top)*devicePixelRatio;
+      planets.forEach((p,i)=>{
+        const orbitR = Math.min(cx,cy)*p.d;
+        const t = (performance.now()-start)/1000;
+        const angle = (t/p.period)*2*Math.PI;
+        const px = cx + Math.cos(angle)*orbitR;
+        const py = cy + Math.sin(angle)*orbitR;
+        if(Math.hypot(px-mx,py-my) < p.r*devicePixelRatio) {
+          drag.index = i;
+          drag.x = mx; drag.y = my;
+        }
       });
-    }
-
-    function startLevel() {
-      maze = generateMaze(gridSize);
-      player = {x:1,y:1};
-      exitPos = {x:gridSize-2, y:gridSize-2};
-      document.getElementById('level').textContent = currentLevel;
-      document.getElementById('nextBtn').style.display = 'none';
-      document.getElementById('restartBtn').style.display = 'none';
-      document.getElementById('message').textContent = 'Use arrows or swipe to move.';
-      initLayout();
-      render();
-    }
-
-    function drawMaze(ctx, mirror=false) {
-      maze.forEach((row,y) => row.forEach((cell,x) => {
-        const dx = mirror ? gridSize-1-x : x;
-        ctx.fillStyle = cell ? '#555' : '#222';
-        ctx.fillRect(dx*cellSize, y*cellSize, cellSize, cellSize);
-        ctx.strokeStyle = '#444';
-        ctx.strokeRect(dx*cellSize, y*cellSize, cellSize, cellSize);
-      }));
-    }
-
-    function render() {
-      if (!player) return;
-      const [ctx1,ctx2] = ["maze1","maze2"].map(id => document.getElementById(id).getContext('2d'));
-      ctx1.clearRect(0,0,gridSize*cellSize,gridSize*cellSize);
-      ctx2.clearRect(0,0,gridSize*cellSize,gridSize*cellSize);
-      drawMaze(ctx1);
-      drawMaze(ctx2,true);
-      const mx = gridSize-1-player.x;
-      [ctx1,ctx2].forEach(ctx => ctx.fillStyle='#0f0');
-      ctx1.fillRect(player.x*cellSize+4,player.y*cellSize+4,cellSize-8,cellSize-8);
-      ctx2.fillRect(mx*cellSize+4,player.y*cellSize+4,cellSize-8,cellSize-8);
-    }
-
-    function tryMove(dx,dy) {
-      if (!player) return;
-      const nx=player.x+dx, ny=player.y+dy;
-      const mx = gridSize-1-nx;
-      if (ny>=0 && ny<gridSize && nx>=0 && nx<gridSize
-          && !maze[ny][nx] && !maze[ny][mx]) {
-        player={x:nx,y:ny};
-        render();
-        if (nx===exitPos.x && ny===exitPos.y) winLevel();
-      }
-    }
-
-    function winLevel() {
-      const msg = document.getElementById('message');
-      if (currentLevel<maxLevels) {
-        msg.textContent = `Level ${currentLevel} complete! Tap Next.`;
-        document.getElementById('nextBtn').style.display='inline-block';
-      } else {
-        msg.textContent='All levels done!';
-        document.getElementById('restartBtn').style.display='inline-block';
-      }
-    }
-
-    ['up','down','left','right'].forEach((dir, i) => {
-      const [dx,dy] = [[0,-1],[0,1],[-1,0],[1,0]][i];
-      const btn = document.getElementById(dir);
-      btn.addEventListener('touchstart', e=>{e.preventDefault(); tryMove(dx,dy);}, {passive:false});
-      btn.addEventListener('mousedown', e=>{e.preventDefault(); tryMove(dx,dy);});
     });
-    document.getElementById('nextBtn').addEventListener('click', ()=>{ currentLevel++; startLevel(); });
-    document.getElementById('restartBtn').addEventListener('click', ()=>{ currentLevel=1; startLevel(); });
-    window.addEventListener('keydown', e=>{
-      const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
-      if(map[e.key]){ e.preventDefault(); tryMove(...map[e.key]); }
+    canvas.addEventListener('pointermove', e=>{
+      if(drag.index===null) return;
+      const rect = canvas.getBoundingClientRect();
+      drag.x = (e.clientX-rect.left)*devicePixelRatio;
+      drag.y = (e.clientY-rect.top)*devicePixelRatio;
+    });
+    canvas.addEventListener('pointerup', e=>{
+      if(drag.index===null) return;
+      // Determine nearest orbit
+      const dist = Math.hypot(drag.x-cx, drag.y-cy);
+      let best = 0, bd = Infinity;
+      orbitDs.forEach((d,i)=>{
+        const rd = Math.abs(dist - Math.min(cx,cy)*d);
+        if(rd < bd){ bd = rd; best = i; }
+      });
+      // swap if different
+      if(best !== drag.index) {
+        [planets[best], planets[drag.index]] = [planets[drag.index], planets[best]];
+      }
+      drag.index = null;
     });
 
-    let sx,sy;
-    document.addEventListener('touchstart', e=>{sx=e.touches[0].clientX; sy=e.touches[0].clientY;}, {passive:true});
-    document.addEventListener('touchend', e=>{const ex=e.changedTouches[0].clientX, ey=e.changedTouches[0].clientY;
-      const dx=ex-sx, dy=ey-sy;
-      if(Math.abs(dx)>Math.abs(dy)){ dx>30?tryMove(1,0):dx<-30&&tryMove(-1,0);
-      } else { dy>30?tryMove(0,1):dy<-30&&tryMove(0,-1); }
-    }, {passive:true});
+    function draw() {
+      const t = (performance.now()-start)/1000;
+      ctx.clearRect(0,0,width,height);
+      // Sun
+      ctx.beginPath(); ctx.arc(cx,cy,20*devicePixelRatio,0,2*Math.PI);
+      const grad = ctx.createRadialGradient(cx,cy,5*devicePixelRatio,cx,cy,20*devicePixelRatio);
+      grad.addColorStop(0,'#fff200');grad.addColorStop(1,'#ff9800');
+      ctx.fillStyle=grad;ctx.fill();
 
-    window.addEventListener('resize', ()=>{ initLayout(); render(); });
-    window.addEventListener('load', startLevel);
+      planets.forEach((p,i)=>{
+        const orbitR = Math.min(cx,cy)*p.d;
+        // orbit
+        ctx.beginPath(); ctx.arc(cx,cy,orbitR,0,2*Math.PI);
+        ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+        // position
+        let px,py;
+        if(i===drag.index) {
+          px = drag.x; py = drag.y;
+        } else {
+          const angle=(t/p.period)*2*Math.PI;
+          px=cx+Math.cos(angle)*orbitR;
+          py=cy+Math.sin(angle)*orbitR;
+        }
+        ctx.beginPath(); ctx.fillStyle=p.color;
+        ctx.arc(px,py,p.r*devicePixelRatio,0,2*Math.PI); ctx.fill();
+      });
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Next Galaxy
+    document.getElementById('nextGalaxyBtn').addEventListener('click', ()=>{
+      const choice = prompt('Enter next galaxy number (1-5):');
+      const idx = parseInt(choice) - 1;
+      if(idx>=0 && idx<galaxies.length) {
+        galaxyIndex = idx;
+        planets = galaxies[galaxyIndex].map((p,i)=>({ ...p, d: orbitDs[i] }));
+        start = performance.now();
+      }
+    });
   </script>
 </body>
 </html>
