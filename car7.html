@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Responsive 2D Top-Down GTA-Style Demo</title>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; background:#333; overflow:hidden; touch-action:none; }
+    #game { display:block; background:#1e1e1e; width:100%; height:100%; }
+    #controls {
+      position:absolute;
+      bottom:20px;
+      left:50%;
+      transform:translateX(-50%);
+      display:grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap:10px;
+    }
+    #hint {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+    }
+    .btn {
+      width:60px;
+      height:60px;
+      background:#555;
+      color:white;
+      font-size:24px;
+      border:none;
+      border-radius:8px;
+      user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <div id="hint">Double tap on the up key</div>
+  <canvas id="game"></canvas>
+  <div id="controls">
+    <button class="btn" id="up" style="grid-row:1; grid-column:2;">↑</button>
+    <button class="btn" id="left" style="grid-row:2; grid-column:1;">←</button>
+    <button class="btn" id="right" style="grid-row:2; grid-column:3;">→</button>
+    <button class="btn" id="down" style="grid-row:3; grid-column:2;">↓</button>
+  </div>
+
+  <script>
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const MAX_SPEED = 4;
+  const ACCEL = 0.1;
+  const FRICTION = 0.96;
+  const TURN_SPEED = 0.05;
+
+  const player = { x: canvas.width / 2, y: canvas.height / 2, angle: 0, speed: 0, w: 50, h: 25 };
+  const police = { x: canvas.width * 0.25, y: canvas.height * 0.25, angle: 0, speed: 0, w: 50, h: 25 };
+
+  let controls = { up:false, down:false, left:false, right:false };
+  let upLock = false;
+  let lastUpTap = 0;
+
+  ['up','down','left','right'].forEach(dir => {
+    const btn = document.getElementById(dir);
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (dir === 'up') {
+        const now = Date.now();
+        if (now - lastUpTap < 300) {
+          upLock = !upLock;
+        }
+        lastUpTap = now;
+      }
+      controls[dir] = true;
+    }, {passive:false});
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (dir !== 'up' || !upLock) {
+        controls[dir] = false;
+      }
+    });
+  });
+
+  function drawCar(car, bodyColor, roofColor) {
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle);
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-car.w/2, -car.h/2, car.w, car.h);
+    ctx.fillStyle = roofColor;
+    ctx.fillRect(-car.w/4, -car.h/4, car.w/2, car.h/2);
+    ctx.restore();
+  }
+
+  function chase(ai, target) {
+    const dx = target.x - ai.x;
+    const dy = target.y - ai.y;
+    const desiredAngle = Math.atan2(dy, dx);
+    let delta = desiredAngle - ai.angle;
+    delta = ((delta + Math.PI) % (2 * Math.PI)) - Math.PI;
+    ai.angle += Math.sign(delta) * TURN_SPEED;
+    ai.speed = Math.min(MAX_SPEED * 0.8, ai.speed + ACCEL * 0.5);
+    ai.x += Math.cos(ai.angle) * ai.speed;
+    ai.y += Math.sin(ai.angle) * ai.speed;
+    ai.speed *= FRICTION;
+  }
+
+  function update() {
+    if (controls.up || upLock) player.speed = Math.min(MAX_SPEED, player.speed + ACCEL);
+    if (controls.down) player.speed = Math.max(-MAX_SPEED/2, player.speed - ACCEL);
+    if (controls.left) player.angle -= TURN_SPEED * (player.speed !== 0 ? 1 : 0);
+    if (controls.right) player.angle += TURN_SPEED * (player.speed !== 0 ? 1 : 0);
+
+    player.x += Math.cos(player.angle) * player.speed;
+    player.y += Math.sin(player.angle) * player.speed;
+    player.speed *= FRICTION;
+
+    if (player.x < 0) player.x += canvas.width;
+    if (player.x > canvas.width) player.x -= canvas.width;
+    if (player.y < 0) player.y += canvas.height;
+    if (player.y > canvas.height) player.y -= canvas.height;
+
+    chase(police, player);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const size = 50;
+    ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+    for (let x=0; x<canvas.width; x+=size) {
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    }
+    for (let y=0; y<canvas.height; y+=size) {
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+    }
+
+    drawCar(player, '#007BFF', '#ffffff');
+    drawCar(police, '#FF3333', '#000000');
+  }
+
+  function loop() {
+    update(); draw(); requestAnimationFrame(loop);
+  }
+
+  loop();
+  </script>
+</body>
+</html>
