@@ -1,3 +1,7 @@
+* {
+    user-select: none;
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* Edge */
 h1{
     color: green;
 }
