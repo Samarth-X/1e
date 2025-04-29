@@ -2,113 +2,171 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Orbit Simulator with Interactive Features</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Realistic Solar System Simulator</title>
   <style>
     html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; font-family:sans-serif; }
-    .game-container { position:relative; width:100vw; height:60vh; max-height:100%; display:flex; align-items:center; justify-content:center; }
-    canvas { display:block; width:100%; height:100%; }
-    #controls { margin-top:10px; text-align:center; }
-    button.action { padding:8px 16px; margin:0 5px; font-size:1rem; border:none; border-radius:4px; background:#444; color:#fff; cursor:pointer; }
-    #tooltip { position:absolute; pointer-events:none; background:rgba(0,0,0,0.7); color:#fff; padding:4px 8px; border-radius:4px; font-size:0.9rem; display:none; white-space:nowrap; }
+    .game-container {
+      position:absolute;
+      top:50%; left:50%;
+      width:100vw; height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      transform: translate(-50%, -50%);
+    }
+    canvas { width:100%; height:100%; display:block; }
+    /* On portrait mobile, rotate and scale container to fill full available space */
+    @media only screen and (max-width: 768px) and (orientation: portrait) {
+      .game-container {
+        width:100vh;
+        height:100vw;
+        /* rotate to landscape and enlarge to cover edges */
+        transform: translate(-50%, -50%) rotate(90deg) scale(1.2);
+      }
+    }
   </style>
 </head>
 <body>
   <div class="game-container">
     <canvas id="orbitCanvas"></canvas>
-    <div id="tooltip"></div>
-  </div>
-  <div id="controls">
-    <button id="nextGalaxyBtn" class="action">Next Galaxy</button>
   </div>
 
   <script>
     const canvas = document.getElementById('orbitCanvas');
     const ctx = canvas.getContext('2d');
-    const tooltip = document.getElementById('tooltip');
     let width, height, cx, cy;
 
-    const orbitDs = [0.2,0.3,0.4,0.5,0.7,0.85];
-    const basePlanets = [
-      {name:'Mercury',r:4,color:'#aaa',period:4.8},
-      {name:'Venus',r:6,color:'#e5c07b',period:12.1},
-      {name:'Earth',r:6,color:'#61afef',period:15},
-      {name:'Mars',r:5,color:'#e06c75',period:28.3},
-      {name:'Jupiter',r:10,color:'#d19a66',period:200},
-      {name:'Saturn',r:9,color:'#c678dd',period:500}
-    ];
-    const galaxies = [];
-    function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
-    for(let g=0;g<5;g++){ const arr = basePlanets.map(p=>({...p})); if(g>0) shuffleArr(arr); galaxies.push(arr); }
-    let galaxyIndex=0;
-    let planets = getGalaxy(galaxyIndex);
+    // Detect mobile (narrow) for elliptical orbits
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const baseMaxD = 0.8;
+    const mobileScale = isMobile ? (0.98 / baseMaxD) : 1;
 
-    function getGalaxy(idx){ return galaxies[idx].map((p,i)=>({...p, d:orbitDs[i]})); }
-
-    function resize(){ width=canvas.clientWidth*devicePixelRatio; height=canvas.clientHeight*devicePixelRatio; canvas.width=width; canvas.height=height; cx=width/2; cy=height/2; }
+    function resize() {
+      width = canvas.clientWidth * devicePixelRatio;
+      height = canvas.clientHeight * devicePixelRatio;
+      canvas.width = width;
+      canvas.height = height;
+      cx = width / 2;
+      cy = height / 2;
+    }
     window.addEventListener('resize', resize);
     resize();
 
-    let start = performance.now();
-    let dragIndex = null, dragX=0, dragY=0;
-    let hoverIndex = null;
+    const orbitDs = [0.1, 0.17, 0.22, 0.29, 0.42, 0.52, 0.67, baseMaxD];
+    const planets = [
+      { name: 'Mercury', r:3, color:'#b1b1b1', period:4.15 },
+      { name: 'Venus',   r:5, color:'#e5c07b', period:10.6 },
+      { name: 'Earth',   r:6, color:'#61afef', period:16.8 },
+      { name: 'Mars',    r:5, color:'#e06c75', period:32.5 },
+      { name: 'Jupiter', r:12,color:'#d19a66', period:433 },
+      { name: 'Saturn',  r:10,color:'#c678dd', period:1075 },
+      { name: 'Uranus',  r:8, color:'#56b6c2', period:30687 },
+      { name: 'Neptune', r:8, color:'#61afef', period:60190 }
+    ].map((p,i)=>({ ...p, d: orbitDs[i] }));
 
-    // Audio feedback
+    const belts = [
+      { count:300, inner:0.32, outer:0.38, color:'#888' },
+      { count:200, inner:0.85, outer:baseMaxD, color:'#aaa' }
+    ];
+
+    const asteroids = [];
+    belts.forEach(belt=>{
+      for(let i=0;i<belt.count;i++){
+        asteroids.push({
+          d: belt.inner + Math.random()*(belt.outer - belt.inner),
+          angleOffset: Math.random()*Math.PI*2,
+          speed: 0.1 + Math.random()*0.2,
+          color: belt.color,
+          size: 1 + Math.random()
+        });
+      }
+    });
+
+    let start = performance.now();
+    let dragIndex=null, dragX=0, dragY=0;
     const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
     function playBeep(){ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=440; g.gain.value=0.1; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.1); }
 
-    canvas.addEventListener('pointerdown', e=>{
-      const {x,y,i} = getPointerPlanet(e); if(i!==null){ dragIndex=i; dragX=x; dragY=y; }
+    canvas.addEventListener('pointerdown', e => {
+      const {i,x,y} = getPointerPlanet(e);
+      if(i!==null){ dragIndex=i; dragX=x; dragY=y; }
     });
-    canvas.addEventListener('pointermove', e=>{
-      const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
-      if(dragIndex!==null){ dragX=mx; dragY=my; }
-      // hover
-      const {i,px,py} = getPointerPlanet(e);
-      if(i!==null){ hoverIndex = i; tooltip.style.display='block'; tooltip.textContent = planets[i].name; tooltip.style.left=`${e.clientX+10}px`; tooltip.style.top=`${e.clientY+10}px`; }
-      else { hoverIndex=null; tooltip.style.display='none'; }
+    canvas.addEventListener('pointermove', e => {
+      if(dragIndex!==null){
+        const rect = canvas.getBoundingClientRect();
+        dragX = (e.clientX-rect.left)*devicePixelRatio;
+        dragY = (e.clientY-rect.top)*devicePixelRatio;
+      }
     });
-    canvas.addEventListener('pointerup', e=>{
-      if(dragIndex===null) return; const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
+    canvas.addEventListener('pointerup', e => {
+      if(dragIndex===null) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX-rect.left)*devicePixelRatio;
+      const my = (e.clientY-rect.top)*devicePixelRatio;
       const dist = Math.hypot(mx-cx, my-cy);
       let best=0, bd=Infinity;
-      orbitDs.forEach((d,i)=>{ const rd=Math.abs(dist-Math.min(cx,cy)*d); if(rd<bd){bd=rd;best=i;} });
-      if(best!==dragIndex){ [planets[best],planets[dragIndex]]=[planets[dragIndex],planets[best]]; playBeep(); }
-      dragIndex=null;
+      orbitDs.forEach((d,i)=>{
+        const rd = Math.abs(dist - Math.min(cx,cy) * d * mobileScale);
+        if(rd<bd){ bd=rd; best=i; }
+      });
+      if(best!==dragIndex){ [planets[best], planets[dragIndex]] = [planets[dragIndex], planets[best]]; playBeep(); }
+      dragIndex = null;
     });
 
-    function getPointerPlanet(e){ const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left)*devicePixelRatio, my=(e.clientY-rect.top)*devicePixelRatio;
-      const t=(performance.now()-start)/1000;
-      for(let i=0;i<planets.length;i++){ const p=planets[i]; const orbitR=Math.min(cx,cy)*p.d; const angle=(t/p.period)*2*Math.PI;
-        const px=cx+Math.cos(angle)*orbitR, py=cy+Math.sin(angle)*orbitR;
-        if(Math.hypot(px-mx,py-my)<p.r*devicePixelRatio) return {x:mx,y:my,i}; }
-      return {x:mx,y:my,i:null}; }
+    function getPointerPlanet(e){
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX-rect.left)*devicePixelRatio;
+      const my = (e.clientY-rect.top)*devicePixelRatio;
+      const t = (performance.now()-start)/1000;
+      for(let i=0;i<planets.length;i++){
+        const p = planets[i];
+        const baseR = Math.min(cx,cy) * p.d * mobileScale;
+        const aspect = isMobile ? height/width : 1;
+        const xR = baseR, yR = baseR * aspect;
+        const angle = (t / p.period) * 2 * Math.PI;
+        const px = cx + Math.cos(angle) * xR;
+        const py = cy + Math.sin(angle) * yR;
+        if(Math.hypot(px-mx, py-my) < p.r * devicePixelRatio) return {i, x: mx, y: my};
+      }
+      return {i: null, x: mx, y: my};
+    }
 
-    function draw(){ const t=(performance.now()-start)/1000;
+    function draw(){
+      const t = (performance.now()-start)/1000;
       ctx.clearRect(0,0,width,height);
-      // Sun with glow
-      ctx.save(); ctx.shadowBlur=20*devicePixelRatio; ctx.shadowColor='yellow'; ctx.beginPath(); ctx.arc(cx,cy,20*devicePixelRatio,0,2*Math.PI); ctx.fillStyle='orange'; ctx.fill(); ctx.restore();
+      // Sun
+      ctx.save(); ctx.shadowBlur=30*devicePixelRatio; ctx.shadowColor='yellow'; ctx.beginPath(); ctx.arc(cx,cy,25*devicePixelRatio,0,2*Math.PI); ctx.fillStyle='orange'; ctx.fill(); ctx.restore();
 
+      // Asteroid belts
+      asteroids.forEach(a=>{
+        const baseR = Math.min(cx,cy) * a.d * mobileScale;
+        const aspect = isMobile ? height/width : 1;
+        const xR = baseR, yR = baseR * aspect;
+        const angle = t * a.speed + a.angleOffset;
+        const px = cx + Math.cos(angle) * xR;
+        const py = cy + Math.sin(angle) * yR;
+        ctx.beginPath(); ctx.fillStyle = a.color; ctx.arc(px,py,a.size*devicePixelRatio,0,2*Math.PI); ctx.fill();
+      });
+
+      // Planets and orbits
       planets.forEach((p,i)=>{
-        const orbitR=Math.min(cx,cy)*p.d;
-        // orbit ring glow
-        ctx.save(); ctx.shadowBlur=5*devicePixelRatio; ctx.shadowColor='rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.arc(cx,cy,orbitR,0,2*Math.PI); ctx.stroke(); ctx.restore();
-        let px,py;
-        if(i===dragIndex){ px=dragX; py=dragY; }
-        else { const angle=(t/p.period)*2*Math.PI; px=cx+Math.cos(angle)*orbitR; py=cy+Math.sin(angle)*orbitR; }
-        // planet glow
+        const baseR = Math.min(cx,cy) * p.d * mobileScale;
+        const aspect = isMobile ? height/width : 1;
+        const xR = baseR, yR = baseR * aspect;
+        // Orbit ellipse
+        ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.beginPath(); ctx.ellipse(cx,cy,xR,yR,0,0,2*Math.PI); ctx.stroke(); ctx.restore();
+        // Position
+        let px, py;
+        if(i===dragIndex){ px=dragX; py=dragY; } else { const angle=(t/p.period)*2*Math.PI; px=cx+Math.cos(angle)*xR; py=cy+Math.sin(angle)*yR; }
+        // Planet
         ctx.save(); ctx.shadowBlur=10*devicePixelRatio; ctx.shadowColor=p.color; ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(px,py,p.r*devicePixelRatio,0,2*Math.PI); ctx.fill(); ctx.restore();
+        // Saturn rings
+        if(p.name==='Saturn'){ ctx.save(); ctx.translate(px,py); ctx.rotate(Math.PI/6); ctx.strokeStyle='rgba(200,200,200,0.5)'; ctx.lineWidth=4*devicePixelRatio; ctx.beginPath(); ctx.ellipse(0,0,p.r*1.8*devicePixelRatio,p.r*0.6*devicePixelRatio,0,0,2*Math.PI); ctx.stroke(); ctx.restore(); }
+        // Labels
+        ctx.save(); ctx.fillStyle='white'; ctx.font=`${12*devicePixelRatio}px sans-serif`; ctx.fillText(p.name,px+5*devicePixelRatio,py-5*devicePixelRatio); ctx.restore();
       });
       requestAnimationFrame(draw);
     }
     draw();
-
-    // Next Galaxy
-    document.getElementById('nextGalaxyBtn').addEventListener('click', ()=>{
-      const choice=prompt('Enter next galaxy number (1-5):'); const idx=parseInt(choice)-1;
-      if(idx>=0 && idx<galaxies.length){ galaxyIndex=idx; planets=getGalaxy(galaxyIndex); start=performance.now(); }
-      else alert('Invalid galaxy, please enter 1-5');
-    });
   </script>
 </body>
 </html>
