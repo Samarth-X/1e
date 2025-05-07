@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Game</title>
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f0f4f8; margin: 0; font-family: Arial, sans-serif; }
+    .container { background: #fff; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 600px; }
+    h1 { text-align: center; margin-bottom: 1rem; color: #333; }
+    #text { background: #f9fafb; padding: 1rem; border-radius: .5rem; max-height: 300px; overflow-y: auto; margin-bottom: 1rem; line-height: 1.5; color: #555; white-space: pre-line; }
+    #input { display: none; width: 100%; padding: .75rem; border: 1px solid #ccc; border-radius: .5rem; font-size: 1rem; text-align: center; }
+    .controls { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
+    .stats { display: flex; justify-content: space-between; margin: 1rem 0; color: #333; }
+    .btn { padding: .75rem 1.5rem; border: none; background: #3b82f6; color: #fff; border-radius: .5rem; cursor: pointer; font-size: 1rem; }
+    .btn:hover { background: #2563eb; }
+    .result { text-align: center; margin: 1rem 0; color: #333; }
+    mark { transition: color 0.2s; }
+    mark.typed { color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TYPE WRITER</h1>
+    <div id="text">Loading...</div>
+    <div class="controls">
+      <button id="addTime" class="btn">+10s</button>
+      <button id="resetMistakes" class="btn">Reset Mistakes</button>
+      <button id="startBtn" class="btn">Start Typing</button>
+    </div>
+    <input id="input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="1" />
+    <div class="stats">
+      <div>Time: <span id="timer">60</span>s</div>
+      <div>Letters: <span id="letters">0</span></div>
+      <div>Mistakes: <span id="mistakes">0</span></div>
+    </div>
+    <button id="resetBtn" class="btn">Try Again</button>
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const paragraphs = [
+      "I wake up early and make my bed each morning.",
+      "She pours a cup of coffee and reads the news.",
+      "They walk the dog in the park every evening.",
+      "He cooks dinner and cleans the dishes after.",
+      "We water the plants and open the windows wide.",
+      "You call your friend to check on their day.",
+      "The sun sets and paints the sky in orange hues.",
+      "Rain falls softly against the window glass.",
+      "Birds sing as the wind blows through the trees.",
+      "Children laugh and play in the green backyard."
+    ];
+    const textEl = document.getElementById('text');
+    const addTimeBtn = document.getElementById('addTime');
+    const resetMistakesBtn = document.getElementById('resetMistakes');
+    const startBtn = document.getElementById('startBtn');
+    const inputEl = document.getElementById('input');
+    const timerEl = document.getElementById('timer');
+    const lettersEl = document.getElementById('letters');
+    const mistakesEl = document.getElementById('mistakes');
+    const resetBtn = document.getElementById('resetBtn');
+    const resultEl = document.getElementById('result');
+
+    let timer = 60;
+    let interval;
+    let totalLetters = 0;
+    let mistakes = 0;
+    let isPlaying = false;
+    let targetChars = [];
+    let currentIndex = 0;
+
+    function loadText() {
+      // pick random simple paragraph of 6 lines
+      const shuffled = paragraphs.sort(() => 0.5 - Math.random()).slice(0, 6);
+      const currentText = shuffled.join(' ');
+      textEl.innerHTML = currentText.split('').map(c => `<mark>${c}</mark>`).join('');
+      // reset all
+      inputEl.style.display = 'none';
+      startBtn.style.display = 'block';
+      timer = 60;
+      timerEl.textContent = timer;
+      totalLetters = 0;
+      mistakes = 0;
+      currentIndex = 0;
+      lettersEl.textContent = totalLetters;
+      mistakesEl.textContent = mistakes;
+      resultEl.textContent = '';
+      clearInterval(interval);
+      isPlaying = false;
+      // store chars
+      targetChars = textEl.textContent.split('');
+    }
+
+    function startGame() {
+      isPlaying = true;
+      startBtn.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+      clearInterval(interval);
+      interval = setInterval(() => {
+        if (timer > 0) {
+          timer--;
+          timerEl.textContent = timer;
+        } else finishGame();
+      }, 1000);
+    }
+
+    function finishGame() {
+      isPlaying = false;
+      clearInterval(interval);
+      inputEl.blur();
+      resultEl.textContent = `Time's up! You typed ${totalLetters} letters with ${mistakes} mistakes.`;
+    }
+
+    inputEl.addEventListener('input', () => {
+      if (!isPlaying) return;
+      const char = inputEl.value;
+      inputEl.value = '';
+      if (!char) return;
+      const expected = targetChars[currentIndex];
+      if (char.toLowerCase() === expected.toLowerCase()) {
+        const marks = textEl.querySelectorAll('mark');
+        marks[currentIndex].classList.add('typed');
+        currentIndex++;
+        totalLetters++;
+        lettersEl.textContent = totalLetters;
+      } else {
+        mistakes++;
+        mistakesEl.textContent = mistakes;
+      }
+    });
+
+    addTimeBtn.addEventListener('click', () => {
+      if (!isPlaying) {
+        timer += 10;
+        timerEl.textContent = timer;
+      }
+    });
+
+    resetMistakesBtn.addEventListener('click', () => {
+      mistakes = 0;
+      mistakesEl.textContent = mistakes;
+    });
+
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', loadText);
+
+    // init
+    loadText();
+  </script>
+</body>
+</html>
