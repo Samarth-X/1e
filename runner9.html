@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Subway Surfers Mini Clone</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    #score {
+      position: absolute; top: 10px; left: 10px; color: #fff; font-size: 2em; z-index: 10;
+      font-family: Arial, sans-serif;
+    }
+    #restartBtn {
+      display: none;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      padding: 20px 40px; font-size: 2em; background: #ff4444; color: #fff; border: none; border-radius: 10px;
+      cursor: pointer; z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <button id="restartBtn">Restart</button>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/controls/OrbitControls.js"></script>
+  <script>// --- Basic Three.js Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222233);
+    
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 6, -10);
+    camera.lookAt(0, 1, 10);
+    
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+    
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    // --- Lighting ---
+    const light = new THREE.DirectionalLight(0xffffff, 1.2);
+    light.position.set(0, 20, 10);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x888888));
+    
+    // --- Lanes ---
+    const lanes = [-2, 0, 2];
+    let currentLane = 1; // 0: left, 1: center, 2: right
+    
+    // --- Characters ---
+    const characterColors = [0x00ff00, 0x2196f3, 0xffc107];
+    const characterNames = ['Jake', 'Tricky', 'Fresh'];
+    let characterIndex = Math.floor(Math.random() * 3);
+    
+    // --- Player ---
+    let player, playerGroup;
+    const playerSize = 1;
+    function createPlayer(index) {
+      const group = new THREE.Group();
+      // Body
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 1.2, 0.5),
+        new THREE.MeshStandardMaterial({color: characterColors[index]})
+      );
+      body.position.y = 0.6;
+      group.add(body);
+      // Head
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 16, 16),
+        new THREE.MeshStandardMaterial({color: 0xffe0b2})
+      );
+      head.position.y = 1.5;
+      group.add(head);
+      // Arms
+      for (let side of [-1, 1]) {
+        const arm = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8),
+          new THREE.MeshStandardMaterial({color: 0xffe0b2})
+        );
+        arm.position.set(0.45 * side, 1, 0);
+        arm.rotation.z = Math.PI / 2;
+        group.add(arm);
+      }
+      group.position.set(lanes[currentLane], 0, 10);
+      return group;
+    }
+    playerGroup = createPlayer(characterIndex);
+    scene.add(playerGroup);
+    
+    // --- Ground ---
+    const groundGeo = new THREE.BoxGeometry(10, 1, 1000);
+    const groundMat = new THREE.MeshStandardMaterial({color: 0x444444});
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.position.set(0, -0.5, 500);
+    scene.add(ground);
+    
+    // --- Trains ---
+    let trains = [];
+    function spawnTrain(z, climbable = false) {
+      const lane = lanes[Math.floor(Math.random() * lanes.length)];
+      const trainGeo = new THREE.BoxGeometry(1.8, climbable ? 2 : 1.2, 4);
+      const trainMat = new THREE.MeshStandardMaterial({color: climbable ? 0x8888ff : 0xff5555});
+      const train = new THREE.Mesh(trainGeo, trainMat);
+      train.position.set(lane, (climbable ? 1 : 0.6), z);
+      train.userData = {climbable};
+      scene.add(train);
+      trains.push(train);
+    }
+    
+    // --- Coins ---
+    let coins = [];
+    function spawnCoin(z, y = 1.2, lane = null) {
+      if (lane === null) lane = lanes[Math.floor(Math.random() * lanes.length)];
+      const coinGroup = new THREE.Group();
+      const coin = new THREE.Mesh(
+        new THREE.TorusGeometry(0.35, 0.12, 16, 32),
+        new THREE.MeshStandardMaterial({color: 0xffd700, emissive: 0x222200})
+      );
+      coin.rotation.x = Math.PI / 2;
+      coinGroup.add(coin);
+      // Border
+      const border = new THREE.Mesh(
+        new THREE.TorusGeometry(0.38, 0.04, 16, 32),
+        new THREE.MeshStandardMaterial({color: 0xffffff, emissive: 0x333333})
+      );
+      border.rotation.x = Math.PI / 2;
+      coinGroup.add(border);
+      coinGroup.position.set(lane, y, z);
+      scene.add(coinGroup);
+      coins.push(coinGroup);
+    }
+    
+    // --- Powerup ---
+    let powerups = [];
+    function spawnPowerup(z, y = 1.5, lane = null) {
+      if (lane === null) lane = lanes[Math.floor(Math.random() * lanes.length)];
+      const powerup = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.4, 0),
+        new THREE.MeshStandardMaterial({color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 1})
+      );
+      powerup.position.set(lane, y, z);
+      // Add glow using a sprite
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/glow.png'),
+        color: 0x00ffff, transparent: true, opacity: 0.7
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.scale.set(1.5, 1.5, 1.5);
+      powerup.add(sprite);
+      scene.add(powerup);
+      powerups.push(powerup);
+    }
+    
+    // --- Game State ---
+    let speed = 0.25;
+    let score = 0;
+    let isJumping = false;
+    let jumpVelocity = 0;
+    const gravity = -0.018;
+    let isGameOver = false;
+    let canClimb = false;
+    let climbTimer = 0;
+    let magnetActive = false;
+    let magnetTimer = 0;
+    
+    // --- UI ---
+    const scoreDiv = document.getElementById('score');
+    const restartBtn = document.getElementById('restartBtn');
+    restartBtn.onclick = () => location.reload();
+    
+    // --- Controls (Keyboard) ---
+    window.addEventListener('keydown', (e) => {
+      if (isGameOver) return;
+      if (e.code === 'ArrowRight' && currentLane > 0) {
+        currentLane--;
+      }
+      if (e.code === 'ArrowLeft' && currentLane < 2) {
+        currentLane++;
+      }
+      if (e.code === 'ArrowUp' && !isJumping) {
+        isJumping = true;
+        jumpVelocity = 0.28;
+      }
+    });
+    
+    // --- Controls (Touch/Swipe) ---
+    let touchStartX = null, touchStartY = null;
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    });
+    window.addEventListener('touchend', (e) => {
+      if (isGameOver || touchStartX === null || touchStartY === null) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal swipe
+        if (dx > 30 && currentLane < 2) currentLane++;
+        else if (dx < -30 && currentLane > 0) currentLane--;
+      } else {
+        // Vertical swipe
+        if (dy < -30 && !isJumping) {
+          isJumping = true;
+          jumpVelocity = 0.28;
+        }
+      }
+      touchStartX = null;
+      touchStartY = null;
+    });
+    
+    // --- Helper Functions ---
+    let lastTrainZ = 30;
+    let lastCoinZ = 10;
+    let lastPowerupZ = 50;
+    
+    function animate() {
+      requestAnimationFrame(animate);
+    
+      if (isGameOver) return;
+    
+      // Move player to lane
+      playerGroup.position.x += (lanes[currentLane] - playerGroup.position.x) * 0.2;
+    
+      // Handle jump and climbing
+      if (isJumping) {
+        playerGroup.position.y += jumpVelocity;
+        jumpVelocity += gravity;
+        if (playerGroup.position.y <= 0) {
+          playerGroup.position.y = 0;
+          isJumping = false;
+        }
+      } else if (canClimb && climbTimer > 0) {
+        climbTimer -= speed;
+        playerGroup.position.y = 1.2;
+        if (climbTimer <= 0) {
+          canClimb = false;
+          playerGroup.position.y = 0;
+        }
+      }
+    
+      // Move world objects toward player (simulate forward running)
+      trains.forEach(train => train.position.z -= speed);
+      coins.forEach(coin => coin.position.z -= speed);
+      powerups.forEach(pu => pu.position.z -= speed);
+    
+      // Remove passed objects
+      trains = trains.filter(train => {
+        if (train.position.z < camera.position.z - 2) {
+          scene.remove(train);
+          return false;
+        }
+        return true;
+      });
+      coins = coins.filter(coin => {
+        if (coin.position.z < camera.position.z - 2) {
+          scene.remove(coin);
+          return false;
+        }
+        return true;
+      });
+      powerups = powerups.filter(pu => {
+        if (pu.position.z < camera.position.z - 2) {
+          scene.remove(pu);
+          return false;
+        }
+        return true;
+      });
+    
+      // Spawn new trains
+      if (lastTrainZ - playerGroup.position.z < 30) {
+        spawnTrain(lastTrainZ + 20 + Math.random() * 10, Math.random() < 0.5);
+        lastTrainZ += 20 + Math.random() * 10;
+      }
+      // Spawn new coins
+      if (lastCoinZ - playerGroup.position.z < 10) {
+        let y = 1.2;
+        let lane = null;
+        if (Math.random() < 0.3 && trains.length > 0) {
+          const climbableTrains = trains.filter(t => t.userData.climbable && t.position.z > playerGroup.position.z + 5);
+          if (climbableTrains.length > 0) {
+            const t = climbableTrains[Math.floor(Math.random() * climbableTrains.length)];
+            y = t.position.y + 0.7;
+            lane = t.position.x;
+          }
+        }
+        spawnCoin(lastCoinZ + 10 + Math.random() * 10, y, lane);
+        lastCoinZ += 10 + Math.random() * 10;
+      }
+      // Spawn new powerups
+      if (lastPowerupZ - playerGroup.position.z < 60) {
+        spawnPowerup(lastPowerupZ + 60 + Math.random() * 30);
+        lastPowerupZ += 60 + Math.random() * 30;
+      }
+    
+      // Coin rotation
+      coins.forEach(coin => coin.rotation.y += 0.1);
+    
+      // Powerup glow
+      powerups.forEach(pu => pu.rotation.y += 0.07);
+    
+      // --- Magnet Powerup Logic ---
+      if (magnetActive) {
+        magnetTimer -= 1;
+        // Attract coins within radius
+        coins.forEach((coin, i) => {
+          const dx = coin.position.x - playerGroup.position.x;
+          const dy = coin.position.y - playerGroup.position.y;
+          const dz = coin.position.z - playerGroup.position.z;
+          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (dist < 3) {
+            // Move coin toward player
+            coin.position.x += (playerGroup.position.x - coin.position.x) * 0.2;
+            coin.position.y += (playerGroup.position.y + 0.5 - coin.position.y) * 0.2;
+            coin.position.z += (playerGroup.position.z - coin.position.z) * 0.2;
+          }
+        });
+        if (magnetTimer <= 0) {
+          magnetActive = false;
+          scoreDiv.innerText = "Score: " + score;
+        } else {
+          scoreDiv.innerText = "Score: " + score + " (Magnet!)";
+        }
+      }
+    
+      // --- Collision detection ---
+      // Trains
+      trains.forEach(train => {
+        if (
+          Math.abs(train.position.z - playerGroup.position.z) < 1.7 &&
+          Math.abs(train.position.x - playerGroup.position.x) < 1.5
+        ) {
+          if (train.userData.climbable && isJumping && playerGroup.position.y > 1.1) {
+            canClimb = true;
+            climbTimer = 8;
+            isJumping = false;
+            playerGroup.position.y = 1.2;
+          } else if (!canClimb && playerGroup.position.y < (train.userData.climbable ? 1.5 : 1.1)) {
+            gameOver();
+          }
+        }
+      });
+      // Coins
+      coins.forEach((coin, i) => {
+        if (
+          Math.abs(coin.position.z - playerGroup.position.z) < 0.7 &&
+          Math.abs(coin.position.x - playerGroup.position.x) < 0.7 &&
+          Math.abs(coin.position.y - playerGroup.position.y) < 1
+        ) {
+          scene.remove(coin);
+          coins.splice(i, 1);
+          score += 10;
+          scoreDiv.innerText = "Score: " + score + (magnetActive ? " (Magnet!)" : "");
+        }
+      });
+      // Powerups
+      powerups.forEach((pu, i) => {
+        if (
+          Math.abs(pu.position.z - playerGroup.position.z) < 0.8 &&
+          Math.abs(pu.position.x - playerGroup.position.x) < 0.8 &&
+          Math.abs(pu.position.y - playerGroup.position.y) < 1.2
+        ) {
+          scene.remove(pu);
+          powerups.splice(i, 1);
+          // Activate magnet for 8 seconds (480 frames at 60fps)
+          magnetActive = true;
+          magnetTimer = 480;
+          scoreDiv.innerText = "Score: " + score + " (Magnet!)";
+        }
+      });
+    
+      // Move player forward (simulate endless running)
+      playerGroup.position.z += speed;
+    
+      // Camera follows player
+      camera.position.z = playerGroup.position.z - 10;
+      camera.position.x += (playerGroup.position.x - camera.position.x) * 0.1;
+      camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1, playerGroup.position.z + 10);
+    
+      renderer.render(scene, camera);
+    }
+    
+    function gameOver() {
+      isGameOver = true;
+      scoreDiv.innerText = "Game Over! Final Score: " + score;
+      restartBtn.style.display = 'block';
+    }
+    
+    animate();</script>
+</body>
+</html>
