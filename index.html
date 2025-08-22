@@ -1,109 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-DKCR4NEWST"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>XS SUPER APP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg: radial-gradient(1200px 800px at 10% 10%, #2dd4bf30 0%, #0ea5e920 40%, #8b5cf620 70%, #000 100%),
+            linear-gradient(135deg, #0f172a 0%, #020617 60%);
+      --glass: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+      --stroke: rgba(255,255,255,.14);
+      --glow: 0 10px 30px rgba(59,130,246,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+      --brand: #60a5fa;
+      --brand2:#22d3ee;
+      --text:#E6EDF6;
+      --muted:#9AA4B2;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: Outfit, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color:var(--text); background: var(--bg); overflow-x: hidden;
+    }
 
-  gtag('config', 'G-DKCR4NEWST');
-</script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER SS</title>
-    <link rel="stylesheet" href="style.css">
+    .shell{position:relative; min-height:100%; padding: clamp(16px, 3vw, 32px);} 
+    .header{display:flex; align-items:center; justify-content:center; gap:16px; margin: clamp(8px,2vh,18px) 0 24px;}
+    .logo{display:grid; place-items:center; width:56px; height:56px; border-radius:16px; background:var(--glass);
+      backdrop-filter: blur(10px); box-shadow: var(--glow); border:1px solid var(--stroke)}
+    .logo span{font-weight:800; letter-spacing:.5px; font-size:14px; background: linear-gradient(90deg, var(--brand), var(--brand2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+
+    h1.title{margin:0; font-size: clamp(28px, 5vw, 56px); letter-spacing:.5px; line-height:1;
+      background: linear-gradient(90deg, #fff, #93c5fd 40%, #22d3ee 70%, #a78bfa);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+      filter: drop-shadow(0 10px 24px rgba(59,130,246,.25));
+    }
+    .subtitle{margin-top:6px; text-align:center; color:var(--muted)}
+
+    .grid{display:grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: clamp(16px, 2.8vw, 28px); max-width:1100px; margin: 0 auto;}
+    @media (max-width: 720px){ .grid{grid-template-columns: 1fr;} }
+
+    .card{
+      position:relative; overflow:hidden; border-radius:28px; padding:22px; min-height:180px; cursor:pointer;
+      background: var(--glass); border:1px solid var(--stroke); box-shadow: var(--glow);
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+      isolation:isolate;
+    }
+    .card:hover{ transform: translateY(-4px); box-shadow: 0 20px 60px rgba(56,189,248,.25), inset 0 0 0 1px rgba(255,255,255,.16); border-color: rgba(255,255,255,.22) }
+    .card:active{ transform: translateY(0) scale(.99) }
+
+    .card .ink{ position:absolute; inset:-40%; background:
+      radial-gradient(360px 280px at 20% 30%, rgba(96,165,250,.25), transparent 60%),
+      radial-gradient(240px 200px at 80% 20%, rgba(34,211,238,.28), transparent 60%),
+      radial-gradient(360px 280px at 60% 80%, rgba(167,139,250,.22), transparent 65%);
+      filter: blur(26px); z-index:0;}
+
+    .card h2{ position:relative; z-index:1; margin:12px 0 6px; font-size: clamp(22px, 3vw, 32px); }
+    .card p{ position:relative; z-index:1; margin:0; color:var(--muted) }
+    .badge{ position:absolute; right:18px; top:18px; z-index:1; font-size:12px; padding:6px 10px; border-radius:999px; background:rgba(34,211,238,.15); border:1px solid rgba(34,211,238,.35)}
+
+    .footer{position:fixed; left:0; right:0; bottom:8px; text-align:center; color:var(--muted); font-size:12px}
+  </style>
 </head>
 <body>
-    <header>
-        <h1>SAMARTH SUPER APPLET</h1>
+  <div class="shell">
+    <header class="header">
+      <div class="logo"><span>XS</span></div>
+      <div>
+        <h1 class="title">XS SUPER APP</h1>
+        <div class="subtitle">• Pick a game to play • SAMARTH •  Built for you ✨</div>
+      </div>
     </header>
 
-    <div class="container">
-        <div class="box" onclick="location.href='snake1.html'">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3HNuKptVKi3_XdVHLuIbRerGZQ64R4SrZtA&usqp=CAU" alt="Snake Game">
-            <div class="content">LEGENDS OF SNAKE</div>
-        </div>
-        <div class="box" onclick="location.href='egg2.html'">
-            <img src="https://png.pngtree.com/png-vector/20190615/ourmid/pngtree-egg-icon-png-image_1501637.jpg" alt="Egg Challenge">
-            <div class="content">EGG FIGHT</div>
-        </div>
-        <div class="box" onclick="location.href='notes3.html'">
-            <img src="https://static.vecteezy.com/system/resources/previews/021/351/746/non_2x/calender-icon-for-your-website-mobile-presentation-and-logo-design-free-vector.jpg" alt="CALENDER">
-            <div class="content">CALENDER</div>
-        </div>
-        <div class="box" onclick="location.href='search4.html'">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4FNj-7wuP85KniXWKNOlYDBUG92fxl9jhCg&s" alt="Game 4">
-            <div class="content">SEARCH 1.0</div>
-        </div>
-        <div class="box" onclick="location.href='flappy5.html'">
-            <img src="https://cdn4.iconfinder.com/data/icons/logos-3/504/Swift-2-512.png" alt="Game 5">
-            <div class="content">FLAPPY GUY</div>
-        </div>
-        <div class="box" onclick="location.href='galaxy6.html'">
-            <img src="https://plus.unsplash.com/premium_photo-1720720425219-b903f7b367d3?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8Z2FsYXh5JTIwd2FsbHBhcGVyfGVufDB8fDB8fHww" alt="Game 6">
-            <div class="content">GALAXY WORLD</div>
-        </div>
-        <div class="box" onclick="location.href='car7.html'">
-            <img src="https://static.vecteezy.com/system/resources/previews/043/213/057/non_2x/car-logo-against-red-and-blue-background-design-a-sleek-emblem-for-an-automotive-repair-business-minimalist-simple-modern-logo-design-free-vector.jpg" alt="Game 7">
-            <div class="content">POLICE CHASE</div>
-        </div>
-        <div class="box" onclick="location.href='type8.html'">
-            <img src="https://static.vecteezy.com/system/resources/previews/009/120/465/non_2x/one-logo-one-letter-one-letter-logo-design-initials-one-logo-linked-with-circle-and-uppercase-monogram-logo-one-typography-for-technology-business-and-real-estate-brand-vector.jpg" alt="Game 8">
-            <div class="content">TYPE WRITER</div>
-        </div>
-        <div class="box" onclick="location.href='runner9.html'">
-            <img src="https://www.creativefabrica.com/wp-content/uploads/2022/11/10/Runner-athlete-icon-logo-design-Graphics-45916060-1.jpg" alt="Game 9">
-            <div class="content">RUNNER</div>
-        </div>
-        <div class="box" onclick="location.href='imagine10.html'">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQr4Go3jV5NQO7z2wTXRZKbMWhWNV-bFy2STA&s" alt="Game 10">
-            <div class="content">IMAGINE</div>
-        </div>
-        <div class="box" onclick="location.href='game11.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 11">
-            <div class="content">GAME 11</div>
-        </div>
-        <div class="box" onclick="location.href='game12.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 12">
-            <div class="content">GAME 12</div>
-        </div>
-        <div class="box" onclick="location.href='game13.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 13">
-            <div class="content">GAME 13</div>
-        </div>
-        <div class="box" onclick="location.href='game14.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 14">
-            <div class="content">GAME 14</div>
-        </div>
-        <div class="box" onclick="location.href='game15.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 15">
-            <div class="content">GAME 15</div>
-        </div>
-        <div class="box" onclick="location.href='game16.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 16">
-            <div class="content">GAME 16</div>
-        </div>
-        <div class="box" onclick="location.href='game17.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 17">
-            <div class="content">GAME 17</div>
-        </div>
-        <div class="box" onclick="location.href='game18.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 18">
-            <div class="content">GAME 18</div>
-        </div>
-        <div class="box" onclick="location.href='game19.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 19">
-            <div class="content">GAME 19</div>
-        </div>
-        <div class="box" onclick="location.href='game20.html'">
-            <img src="https://via.placeholder.com/100" alt="Game 20">
-            <div class="content">GAME 20</div>
-        </div>        
-    </div>
+    <main class="grid">
+      <article class="card" onclick="location.href='snake1.html'">
+        <div class="ink"></div>
+        <span class="badge">Arcade</span>
+        <h2>LEGENDS OF SNAKE</h2>
+        <p>Classic snake with smooth controls, score & speed ups.</p>
+      </article>
 
+      <article class="card" onclick="location.href='egg2.html'">
+        <div class="ink"></div>
+        <span class="badge">Action</span>
+        <h2>EGG FIGHT</h2>
+        <p>Funny egg battle challenge for quick reflexes.</p>
+      </article>
+
+      <article class="card" onclick="location.href='notes3.html'">
+        <div class="ink"></div>
+        <span class="badge">Utility</span>
+        <h2>CALENDER</h2>
+        <p>Plan and manage events with ease.</p>
+      </article>
+
+      <article class="card" onclick="location.href='search4.html'">
+        <div class="ink"></div>
+        <span class="badge">Tool</span>
+        <h2>SEARCH 1.0</h2>
+        <p>Find anything instantly with smart search.</p>
+      </article>
+
+      <article class="card" onclick="location.href='flappy5.html'">
+        <div class="ink"></div>
+        <span class="badge">Arcade</span>
+        <h2>FLAPPY GUY</h2>
+        <p>Tap to fly and dodge obstacles for a high score.</p>
+      </article>
+
+      <article class="card" onclick="location.href='galaxy6.html'">
+        <div class="ink"></div>
+        <span class="badge">Action</span>
+        <h2>GALAXY WORLD</h2>
+        <p>Defeat alien ships in endless galaxy battles.</p>
+      </article>
+
+      <article class="card" onclick="location.href='car7.html'">
+        <div class="ink"></div>
+        <span class="badge">Racing</span>
+        <h2>POLICE CHASE</h2>
+        <p>Outrun cops in this thrilling car chase.</p>
+      </article>
+
+      <article class="card" onclick="location.href='type8.html'">
+        <div class="ink"></div>
+        <span class="badge">Typing</span>
+        <h2>TYPE WRITER</h2>
+        <p>Improve your typing speed with fun challenges.</p>
+      </article>
+
+      <article class="card" onclick="location.href='runner9.html'">
+        <div class="ink"></div>
+        <span class="badge">Adventure</span>
+        <h2>RUNNER</h2>
+        <p>Keep running and avoid obstacles endlessly.</p>
+      </article>
+
+      <article class="card" onclick="location.href='imagine10.html'">
+        <div class="ink"></div>
+        <span class="badge">Puzzle</span>
+        <h2>IMAGINE</h2>
+        <p>Slide the tiles into order. Clean & solvable.</p>
+      </article>
+    </main>
+  </div>
+
+  <div class="footer">© SAMARTH 2025</div>
 </body>
 </html>
-
-
