@@ -100,8 +100,8 @@
       let newFruit;
       do {
         newFruit = {
-          x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
-          y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize,
+          x: Math.floor(Math.random() * ((canvas.width / gridSize) - 2) + 1) * gridSize,
+          y: Math.floor(Math.random() * ((canvas.height / gridSize) - 2) + 1) * gridSize,
           color: "#ff4d4d"
         };
       } while (snake.some(s => s.x === newFruit.x && s.y === newFruit.y));
@@ -189,7 +189,7 @@
     }
 
     function drawHead(x, y) {
-      const r = gridSize * 0.25; // front radius 8%
+      const r = gridSize * 0.25; // front radius
       ctx.fillStyle = "#00cc44";
       ctx.beginPath();
       const corners = { tl:0, tr:0, br:0, bl:0 };
